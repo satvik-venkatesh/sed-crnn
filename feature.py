@@ -118,11 +118,11 @@ __class_labels = {
 
 # location of data.
 folds_list = [1, 2, 3, 4]
-evaluation_setup_folder = '/scratch/asignal/sharath/DCASE2017/TUT-sound-events-2017-development/evaluation_setup'
-audio_folder = '/scratch/asignal/sharath/DCASE2017/TUT-sound-events-2017-development/audio/street'
+evaluation_setup_folder = 'D:/Code/sed-crnn/TUT-sound-events-2017-development/TUT-sound-events-2017-development/evaluation_setup'
+audio_folder = 'D:/Code/sed-crnn/TUT-sound-events-2017-development/TUT-sound-events-2017-development/audio/street'
 
 # Output
-feat_folder = '/scratch/asignal/sharath/DCASE2017/TUT-sound-events-2017-development/feat/'
+feat_folder = 'D:/Code/sed-crnn/TUT-sound-events-2017-development/TUT-sound-events-2017-development/feat/'
 utils.create_folder(feat_folder)
 
 # User set parameters

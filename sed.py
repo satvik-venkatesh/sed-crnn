@@ -4,15 +4,16 @@ import numpy as np
 import time
 import sys
 import matplotlib.pyplot as plot
-from keras.layers import Bidirectional, TimeDistributed, Conv2D, MaxPooling2D, Input, GRU, Dense, Activation, Dropout, Reshape, Permute
-from keras.layers.normalization import BatchNormalization
-from keras.models import Model
+import tensorflow as tf
+from tensorflow.keras.layers import Bidirectional, TimeDistributed, Conv2D, MaxPooling2D, Input, GRU, Dense, Activation, Dropout, Reshape, Permute
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.models import Model
 from sklearn.metrics import confusion_matrix
 import metrics
 import utils
 from IPython import embed
-import keras.backend as K
-K.set_image_data_format('channels_first')
+import tensorflow.keras.backend as K
+K.set_image_data_format('channels_last')
 plot.switch_backend('agg')
 sys.setrecursionlimit(10000)
 
@@ -25,21 +26,31 @@ def load_data(_feat_folder, _mono, _fold=None):
 
 
 def get_model(data_in, data_out, _cnn_nb_filt, _cnn_pool_size, _rnn_nb, _fc_nb):
+    
+    print("\n\n data_in.shape is {}\n\n".format(data_in.shape))
 
     spec_start = Input(shape=(data_in.shape[-3], data_in.shape[-2], data_in.shape[-1]))
     spec_x = spec_start
+    spec_x = Permute((2, 3, 1))(spec_x)
+    # spec_x = 
+    # spec_x = tf.keras.layers.Lambda(lambda x: tf.transpose(x, perm=[0, 2, 3, 1]))(spec_x)
+    print("\n\n spec_x.shape is {}\n\n".format(spec_x.shape))
+    
     for _i, _cnt in enumerate(_cnn_pool_size):
         spec_x = Conv2D(filters=_cnn_nb_filt, kernel_size=(3, 3), padding='same')(spec_x)
-        spec_x = BatchNormalization(axis=1)(spec_x)
+        spec_x = BatchNormalization()(spec_x)
         spec_x = Activation('relu')(spec_x)
         spec_x = MaxPooling2D(pool_size=(1, _cnn_pool_size[_i]))(spec_x)
         spec_x = Dropout(dropout_rate)(spec_x)
-    spec_x = Permute((2, 1, 3))(spec_x)
-    spec_x = Reshape((data_in.shape[-2], -1))(spec_x)
+    # spec_x = Permute((2, 1, 3))(spec_x)
+    _, _, sx, sy = spec_x.shape
+    spec_x = tf.keras.layers.Reshape((-1, int(sx * sy)))(spec_x)
+    
+    print("\n\n spec_x.shape is {}\n\n".format(spec_x.shape))
 
     for _r in _rnn_nb:
         spec_x = Bidirectional(
-            GRU(_r, activation='tanh', dropout=dropout_rate, recurrent_dropout=dropout_rate, return_sequences=True),
+            GRU(_r, activation='tanh', dropout=dropout_rate, return_sequences=True),
             merge_mode='mul')(spec_x)
 
     for _f in _fc_nb:
@@ -94,12 +105,12 @@ def preprocess_data(_X, _Y, _X_test, _Y_test, _seq_len, _nb_ch):
 
 is_mono = True  # True: mono-channel input, False: binaural input
 
-feat_folder = '/scratch/asignal/sharath/DCASE2017/TUT-sound-events-2017-development/feat/'
+feat_folder = 'D:/Code/sed-crnn/TUT-sound-events-2017-development/TUT-sound-events-2017-development/feat/'
 __fig_name = '{}_{}'.format('mon' if is_mono else 'bin', time.strftime("%Y_%m_%d_%H_%M_%S"))
 
 
 nb_ch = 1 if is_mono else 2
-batch_size = 128    # Decrease this if you want to run on smaller GPU's
+batch_size = 32    # Decrease this if you want to run on smaller GPU's
 seq_len = 256       # Frame sequence length. Input to the CRNN.
 nb_epoch = 500      # Training epochs
 patience = int(0.25 * nb_epoch)  # Patience for early stopping
@@ -149,12 +160,15 @@ for fold in [1, 2, 3, 4]:
         hist = model.fit(
             X, Y,
             batch_size=batch_size,
-            validation_data=[X_test, Y_test],
+            # validation_data=[X_test, Y_test],
             epochs=1,
-            verbose=2
+            verbose=1
         )
-        val_loss[i] = hist.history.get('val_loss')[-1]
-        tr_loss[i] = hist.history.get('loss')[-1]
+        # val_loss[i] = hist.history.get('val_loss')[-1]
+        val_loss[i] = -1
+
+        # tr_loss[i] = hist.history.get('loss')[-1]
+        tr_loss[i] = -1
 
         # Calculate the predictions on test data, in order to calculate ER and F scores
         pred = model.predict(X_test)
